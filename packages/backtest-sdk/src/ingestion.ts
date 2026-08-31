@@ -42,9 +42,27 @@ import {
   TOLERANCE_POLICY_VERSION,
   type ParityTrade,
 } from '@arf/pine';
-import type { AuthContext } from '../auth.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors.js';
-import { verificationUploadKey, type ObjectStore } from '../storage.js';
+import {
+  IngestionConflictError,
+  IngestionValidationError,
+  ResourceNotFoundError,
+} from './errors.js';
+import { verificationUploadKey, type ObjectStore } from './storage.js';
+
+/**
+ * Who is performing the ingestion.
+ *
+ * Deliberately narrower than the API's AuthContext: the pipeline needs an
+ * organisation to scope by and an actor to attribute audit rows to, and
+ * nothing else. A worker supplies its service identity here, which is why
+ * this module carries no HTTP types.
+ */
+export interface ActorContext {
+  readonly organisationId: string;
+  /** User id, or a service name such as 'worker-backtest'. */
+  readonly actorId: string;
+  readonly actorType: 'HUMAN' | 'SERVICE';
+}
 
 /** Upload size ceiling. Spec 15.1 requires a size check before acceptance. */
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
@@ -70,7 +88,7 @@ export interface CreateVerificationInput {
  */
 export async function createVerification(
   db: Database,
-  auth: AuthContext,
+  actor: ActorContext,
   input: CreateVerificationInput,
 ): Promise<{ id: string; expectedSourceHash: string }> {
   const [version] = await db
@@ -79,14 +97,14 @@ export async function createVerification(
     .where(
       and(
         eq(strategyVersions.id, input.strategyVersionId),
-        eq(strategyVersions.organisationId, auth.organisationId),
+        eq(strategyVersions.organisationId, actor.organisationId),
       ),
     )
     .limit(1);
 
-  if (!version) throw new NotFoundError('Strategy version', input.strategyVersionId);
+  if (!version) throw new ResourceNotFoundError('Strategy version', input.strategyVersionId);
   if (!version.pineSourceHash) {
-    throw new ValidationError('This strategy version has no Pine revision to verify.', [
+    throw new IngestionValidationError('This strategy version has no Pine revision to verify.', [
       { path: 'strategyVersionId', message: 'pineSourceHash is not set' },
     ]);
   }
@@ -95,7 +113,7 @@ export async function createVerification(
   await db.transaction(async (tx) => {
     await tx.insert(tradingviewVerifications).values({
       id,
-      organisationId: auth.organisationId,
+      organisationId: actor.organisationId,
       strategyVersionId: input.strategyVersionId,
       status: 'AWAITING_UPLOAD',
       expectedSourceHash: version.pineSourceHash as string,
@@ -104,14 +122,14 @@ export async function createVerification(
       expectedSettings: input.settings,
       ...(input.rangeStart ? { expectedRangeStart: input.rangeStart } : {}),
       ...(input.rangeEnd ? { expectedRangeEnd: input.rangeEnd } : {}),
-      requestedByUserId: auth.userId,
+      ...(actor.actorType === 'HUMAN' ? { requestedByUserId: actor.actorId } : {}),
     });
 
     await tx.insert(auditEvents).values({
       id: newId(),
-      organisationId: auth.organisationId,
-      actorType: 'HUMAN',
-      actorId: auth.userId,
+      organisationId: actor.organisationId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
       action: 'verification.created',
       aggregateType: 'tradingview_verification',
       aggregateId: id,
@@ -136,25 +154,25 @@ export interface PresignInput {
 export async function presignUpload(
   db: Database,
   store: ObjectStore,
-  auth: AuthContext,
+  actor: ActorContext,
   input: PresignInput,
 ): Promise<{ uploadId: string; url: string; objectKey: string; expiresInSeconds: number }> {
   if (!ALLOWED_CONTENT_TYPES.includes(input.contentType as (typeof ALLOWED_CONTENT_TYPES)[number])) {
-    throw new ValidationError(`Content type ${input.contentType} is not accepted.`, [
+    throw new IngestionValidationError(`Content type ${input.contentType} is not accepted.`, [
       { path: 'contentType', message: `Expected one of ${ALLOWED_CONTENT_TYPES.join(', ')}` },
     ]);
   }
   if (input.byteSize > MAX_UPLOAD_BYTES) {
-    throw new ValidationError('Upload exceeds the maximum accepted size.', [
+    throw new IngestionValidationError('Upload exceeds the maximum accepted size.', [
       { path: 'byteSize', message: `Maximum is ${MAX_UPLOAD_BYTES} bytes` },
     ]);
   }
 
-  const verification = await loadVerification(db, auth, input.verificationId);
+  const verification = await loadVerification(db, actor, input.verificationId);
 
   const uploadId = newId();
   const objectKey = verificationUploadKey(
-    auth.organisationId,
+    actor.organisationId,
     verification.strategyVersionId,
     verification.id,
     uploadId,
@@ -165,13 +183,13 @@ export async function presignUpload(
 
   await db.insert(reportUploads).values({
     id: uploadId,
-    organisationId: auth.organisationId,
+    organisationId: actor.organisationId,
     verificationId: verification.id,
     reportKind: input.reportKind,
     status: 'PRESIGNED',
     originalFilename: input.filename,
     declaredSha256: input.declaredSha256,
-    uploadedByUserId: auth.userId,
+    ...(actor.actorType === 'HUMAN' ? { uploadedByUserId: actor.actorId } : {}),
   });
 
   return { uploadId, ...presigned };
@@ -188,7 +206,7 @@ export async function presignUpload(
 export async function completeUpload(
   db: Database,
   store: ObjectStore,
-  auth: AuthContext,
+  actor: ActorContext,
   uploadId: string,
 ): Promise<{ uploadId: string; artefactId: string; sha256: string }> {
   const [upload] = await db
@@ -197,12 +215,12 @@ export async function completeUpload(
     .where(
       and(
         eq(reportUploads.id, uploadId),
-        eq(reportUploads.organisationId, auth.organisationId),
+        eq(reportUploads.organisationId, actor.organisationId),
       ),
     )
     .limit(1);
 
-  if (!upload) throw new NotFoundError('Report upload', uploadId);
+  if (!upload) throw new ResourceNotFoundError('Report upload', uploadId);
   if (upload.status !== 'PRESIGNED') {
     // Idempotency: completing twice is not an error, but it must not re-run.
     if (upload.artefactId) {
@@ -215,12 +233,12 @@ export async function completeUpload(
         return { uploadId, artefactId: existing.id, sha256: existing.contentSha256 };
       }
     }
-    throw new ConflictError('upload_already_completed', 'This upload was already completed.');
+    throw new IngestionConflictError('upload_already_completed', 'This upload was already completed.');
   }
 
-  const verification = await loadVerification(db, auth, upload.verificationId);
+  const verification = await loadVerification(db, actor, upload.verificationId);
   const objectKey = verificationUploadKey(
-    auth.organisationId,
+    actor.organisationId,
     verification.strategyVersionId,
     verification.id,
     uploadId,
@@ -237,7 +255,7 @@ export async function completeUpload(
         rejectionReason: `Checksum mismatch: declared ${upload.declaredSha256}, stored ${stored.sha256}.`,
       })
       .where(eq(reportUploads.id, uploadId));
-    throw new ValidationError('The uploaded file does not match its declared checksum.', [
+    throw new IngestionValidationError('The uploaded file does not match its declared checksum.', [
       { path: 'sha256', message: 'Stored object checksum differs from the declared value' },
     ]);
   }
@@ -246,7 +264,7 @@ export async function completeUpload(
   await db.transaction(async (tx) => {
     await tx.insert(artefacts).values({
       id: artefactId,
-      organisationId: auth.organisationId,
+      organisationId: actor.organisationId,
       objectKey,
       contentSha256: stored.sha256,
       contentType: 'text/csv',
@@ -261,9 +279,9 @@ export async function completeUpload(
 
     await tx.insert(auditEvents).values({
       id: newId(),
-      organisationId: auth.organisationId,
-      actorType: 'HUMAN',
-      actorId: auth.userId,
+      organisationId: actor.organisationId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
       action: 'report_upload.completed',
       aggregateType: 'report_upload',
       aggregateId: uploadId,
@@ -274,7 +292,7 @@ export async function completeUpload(
     // scheduled only if this transaction commits (CLAUDE.md 9.3).
     await tx.insert(outboxEvents).values({
       id: newId(),
-      organisationId: auth.organisationId,
+      organisationId: actor.organisationId,
       eventType: 'report_upload.completed',
       aggregateType: 'report_upload',
       aggregateId: uploadId,
@@ -305,7 +323,7 @@ export interface ProcessResult {
 export async function processVerification(
   db: Database,
   store: ObjectStore,
-  auth: AuthContext,
+  actor: ActorContext,
   verificationId: string,
   options: {
     readonly timeZone: string;
@@ -313,7 +331,7 @@ export async function processVerification(
     readonly initialCapital: string;
   },
 ): Promise<ProcessResult> {
-  const verification = await loadVerification(db, auth, verificationId);
+  const verification = await loadVerification(db, actor, verificationId);
 
   const [upload] = await db
     .select()
@@ -328,7 +346,7 @@ export async function processVerification(
     .limit(1);
 
   if (!upload?.artefactId) {
-    throw new ValidationError('No completed List of Trades upload for this verification.', [
+    throw new IngestionValidationError('No completed List of Trades upload for this verification.', [
       { path: 'verificationId', message: 'Upload a List of Trades export first' },
     ]);
   }
@@ -338,23 +356,42 @@ export async function processVerification(
     .from(artefacts)
     .where(eq(artefacts.id, upload.artefactId))
     .limit(1);
-  if (!artefact) throw new NotFoundError('Artefact', upload.artefactId);
+  if (!artefact) throw new ResourceNotFoundError('Artefact', upload.artefactId);
 
   const stored = await store.get(artefact.objectKey);
   // The artefact is content-addressed; if the bytes no longer hash to the
   // recorded value the store has been tampered with or corrupted.
   if (stored.sha256 !== artefact.contentSha256) {
-    throw new ConflictError(
+    throw new IngestionConflictError(
       'artefact_checksum_mismatch',
       'The stored artefact no longer matches its recorded checksum.',
     );
   }
 
   const text = new TextDecoder().decode(stored.bytes);
-  const parsed = parseListOfTrades(text, {
-    timeZone: options.timeZone,
-    ...(options.dayFirst === undefined ? {} : { dayFirst: options.dayFirst }),
-  });
+
+  /**
+   * Anything the parser throws here is a problem with the file's *content*,
+   * not with infrastructure: the bytes have already been fetched and their
+   * checksum verified, so no I/O remains that could fail.
+   *
+   * Translating these into a domain error is what makes them terminal for the
+   * worker. Left as raw errors they look like infrastructure faults, and a
+   * file that will never parse would be retried until it dead-letters —
+   * delaying the signal that the export itself is wrong.
+   */
+  let parsed;
+  try {
+    parsed = parseListOfTrades(text, {
+      timeZone: options.timeZone,
+      ...(options.dayFirst === undefined ? {} : { dayFirst: options.dayFirst }),
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new IngestionValidationError(`The export could not be parsed: ${message}`, [
+      { path: 'file', message },
+    ]);
+  }
 
   const ledger = {
     schemaVersion: '1.0.0',
@@ -455,7 +492,7 @@ export async function processVerification(
   await db.transaction(async (tx) => {
     await tx.insert(backtestRuns).values({
       id: runId,
-      organisationId: auth.organisationId,
+      organisationId: actor.organisationId,
       strategyVersionId: verification.strategyVersionId,
       verificationId: verification.id,
       runnerType: 'TRADINGVIEW',
@@ -477,7 +514,7 @@ export async function processVerification(
       await tx.insert(trades).values(
         ledger.trades.map((t) => ({
           id: newId(),
-          organisationId: auth.organisationId,
+          organisationId: actor.organisationId,
           backtestRunId: runId,
           tradeNumber: t.tradeNumber,
           direction: t.direction,
@@ -496,7 +533,7 @@ export async function processVerification(
     await tx.insert(equityPoints).values(
       equity.points.map((p) => ({
         id: newId(),
-        organisationId: auth.organisationId,
+        organisationId: actor.organisationId,
         backtestRunId: runId,
         tradeNumber: p.tradeNumber,
         at: p.at,
@@ -513,7 +550,7 @@ export async function processVerification(
     await tx.insert(metricSnapshots).values(
       metrics.metrics.map((m) => ({
         id: newId(),
-        organisationId: auth.organisationId,
+        organisationId: actor.organisationId,
         metricName: m.name,
         value: m.value,
         ...(m.value === null ? { nullReason: m.nullReason ?? 'Undefined for this input' } : {}),
@@ -527,7 +564,7 @@ export async function processVerification(
 
     await tx.insert(parityReports).values({
       id: parityReportId,
-      organisationId: auth.organisationId,
+      organisationId: actor.organisationId,
       strategyVersionId: verification.strategyVersionId,
       verificationId: verification.id,
       arfRunId: runId,
@@ -563,15 +600,15 @@ export async function processVerification(
         and(
           eq(strategyVersions.id, verification.strategyVersionId),
           // Only when not already set; the trigger rejects a change.
-          eq(strategyVersions.organisationId, auth.organisationId),
+          eq(strategyVersions.organisationId, actor.organisationId),
         ),
       );
 
     await tx.insert(auditEvents).values({
       id: newId(),
-      organisationId: auth.organisationId,
-      actorType: 'SERVICE',
-      actorId: 'ingestion',
+      organisationId: actor.organisationId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
       action: 'verification.processed',
       aggregateType: 'tradingview_verification',
       aggregateId: verification.id,
@@ -595,7 +632,7 @@ export async function processVerification(
 
 async function loadVerification(
   db: Database,
-  auth: AuthContext,
+  actor: ActorContext,
   verificationId: string,
 ): Promise<typeof tradingviewVerifications.$inferSelect> {
   const [row] = await db
@@ -604,18 +641,18 @@ async function loadVerification(
     .where(
       and(
         eq(tradingviewVerifications.id, verificationId),
-        eq(tradingviewVerifications.organisationId, auth.organisationId),
+        eq(tradingviewVerifications.organisationId, actor.organisationId),
       ),
     )
     .limit(1);
-  if (!row) throw new NotFoundError('Verification', verificationId);
+  if (!row) throw new ResourceNotFoundError('Verification', verificationId);
   return row;
 }
 
 /** Read back the reconstructed evidence for a run. */
 export async function readRunEvidence(
   db: Database,
-  auth: AuthContext,
+  actor: ActorContext,
   runId: string,
 ): Promise<{
   trades: Array<typeof trades.$inferSelect>;
@@ -627,8 +664,8 @@ export async function readRunEvidence(
     .from(backtestRuns)
     .where(eq(backtestRuns.id, runId))
     .limit(1);
-  if (!run || run.organisationId !== auth.organisationId) {
-    throw new NotFoundError('Backtest run', runId);
+  if (!run || run.organisationId !== actor.organisationId) {
+    throw new ResourceNotFoundError('Backtest run', runId);
   }
 
   const [tradeRows, equityRows, metricRows] = await Promise.all([

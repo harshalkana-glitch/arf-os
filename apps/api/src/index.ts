@@ -7,7 +7,7 @@
  */
 import { createDatabase } from '@arf/db';
 import { buildApp } from './app.js';
-import { S3ObjectStore } from './storage.js';
+import { S3ObjectStore } from '@arf/backtest-sdk';
 
 function required(name: string): string {
   const value = process.env[name];

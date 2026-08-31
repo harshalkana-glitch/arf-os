@@ -2,6 +2,12 @@ packages:
   - "apps/*"
   - "packages/*"
 
-# esbuild's install script selects the platform binary that vitest loads.
 allowBuilds:
+  # esbuild's install script selects the platform binary that vitest loads.
   esbuild: true
+  # msgpackr-extract is an optional native accelerator for msgpackr, which
+  # BullMQ uses to serialise jobs. msgpackr falls back to a pure-JS codec
+  # without it, so declining the build keeps a C++ toolchain off the list of
+  # things every machine and CI runner needs. Revisit only if job
+  # serialisation shows up in a profile.
+  msgpackr-extract: false

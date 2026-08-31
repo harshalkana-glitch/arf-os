@@ -14,14 +14,15 @@ import { parityReports, reportUploads, tradingviewVerifications } from '@arf/db/
 import { assertSameOrganisation, requireRole } from '../auth.js';
 import { UnauthorisedError } from '../errors.js';
 import { toIso } from '../serialization.js';
-import type { ObjectStore } from '../storage.js';
 import {
   completeUpload,
   createVerification,
   presignUpload,
   processVerification,
   readRunEvidence,
-} from '../services/ingestion.js';
+  type ActorContext,
+  type ObjectStore,
+} from '@arf/backtest-sdk';
 
 const CreateBody = z.object({
   strategyVersionId: z.string().uuid(),
@@ -52,6 +53,13 @@ const ProcessBody = z.object({
 
 const IdParam = z.object({ id: z.string().uuid() });
 
+/** The pipeline needs only an organisation and an attributable actor. */
+const asActor = (auth: { organisationId: string; userId: string }): ActorContext => ({
+  organisationId: auth.organisationId,
+  actorId: auth.userId,
+  actorType: 'HUMAN',
+});
+
 export function registerVerificationRoutes(
   app: FastifyInstance,
   db: Database,
@@ -62,7 +70,7 @@ export function registerVerificationRoutes(
     if (!auth) throw new UnauthorisedError();
     requireRole(auth, ['DEVELOPER', 'VALIDATOR', 'OPERATOR', 'ADMIN']);
     const body = CreateBody.parse(request.body);
-    const result = await createVerification(db, auth, body);
+    const result = await createVerification(db, asActor(auth), body);
     return reply.status(201).send(result);
   });
 
@@ -115,7 +123,7 @@ export function registerVerificationRoutes(
     requireRole(auth, ['DEVELOPER', 'VALIDATOR', 'OPERATOR', 'ADMIN']);
     const { id } = IdParam.parse(request.params);
     const body = PresignBody.parse(request.body);
-    const result = await presignUpload(db, store, auth, { verificationId: id, ...body });
+    const result = await presignUpload(db, store, asActor(auth), { verificationId: id, ...body });
     return reply.status(201).send(result);
   });
 
@@ -124,7 +132,7 @@ export function registerVerificationRoutes(
     if (!auth) throw new UnauthorisedError();
     requireRole(auth, ['DEVELOPER', 'VALIDATOR', 'OPERATOR', 'ADMIN']);
     const { id } = IdParam.parse(request.params);
-    return completeUpload(db, store, auth, id);
+    return completeUpload(db, store, asActor(auth), id);
   });
 
   /**
@@ -141,7 +149,7 @@ export function registerVerificationRoutes(
     requireRole(auth, ['DEVELOPER', 'VALIDATOR', 'OPERATOR', 'ADMIN']);
     const { id } = IdParam.parse(request.params);
     const body = ProcessBody.parse(request.body);
-    return processVerification(db, store, auth, id, body);
+    return processVerification(db, store, asActor(auth), id, body);
   });
 
   app.get('/v1/verifications/:id/parity', async (request) => {
@@ -193,7 +201,7 @@ export function registerVerificationRoutes(
     const auth = request.auth;
     if (!auth) throw new UnauthorisedError();
     const { id } = IdParam.parse(request.params);
-    const evidence = await readRunEvidence(db, auth, id);
+    const evidence = await readRunEvidence(db, asActor(auth), id);
 
     return {
       trades: evidence.trades.map((t) => ({

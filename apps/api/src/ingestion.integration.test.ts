@@ -28,7 +28,7 @@ import {
   users,
 } from '@arf/db/schema';
 import { buildApp } from './app.js';
-import { S3ObjectStore } from './storage.js';
+import { S3ObjectStore } from '@arf/backtest-sdk';
 
 const TEST_URL =
   process.env['TEST_DATABASE_URL'] ?? 'postgresql://arf:arf_local_dev@localhost:5433/arf_test';

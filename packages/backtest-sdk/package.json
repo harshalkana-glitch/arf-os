@@ -1,0 +1,21 @@
+{
+  "name": "@arf/backtest-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arf/contracts": "workspace:*",
+    "@arf/db": "workspace:*",
+    "@arf/metrics": "workspace:*",
+    "@arf/pine": "workspace:*",
+    "@aws-sdk/client-s3": "^3.717.0",
+    "@aws-sdk/s3-request-presigner": "^3.717.0",
+    "drizzle-orm": "^0.38.3"
+  }
+}

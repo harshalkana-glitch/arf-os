@@ -26,7 +26,7 @@ import {
 } from '@arf/db/schema';
 import type { RbacRole, WorkflowState } from '@arf/contracts';
 import { buildApp } from './app.js';
-import { S3ObjectStore } from './storage.js';
+import { S3ObjectStore } from '@arf/backtest-sdk';
 
 /** MinIO from infra/docker/docker-compose.yml. */
 function testStore(): S3ObjectStore {

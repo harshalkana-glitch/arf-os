@@ -8,6 +8,12 @@
  */
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
+import {
+  IngestionConflictError,
+  IngestionError,
+  IngestionValidationError,
+  ResourceNotFoundError,
+} from '@arf/backtest-sdk';
 
 export type ProblemBody = {
   type: string;
@@ -146,6 +152,33 @@ export function problemDetailsHandler(
       validationErrors: error.issues,
     };
     return reply.status(error.status).type('application/problem+json').send(body);
+  }
+
+  /**
+   * Domain errors from @arf/backtest-sdk carry no HTTP knowledge, which is
+   * what lets the worker use the same pipeline. Mapping them to a status
+   * happens here and only here.
+   */
+  if (error instanceof IngestionError) {
+    const status =
+      error instanceof ResourceNotFoundError
+        ? 404
+        : error instanceof IngestionConflictError
+          ? 409
+          : 422;
+    const body: ProblemBody = {
+      type: `https://arf-os.dev/problems/${error.code}`,
+      title: status === 404 ? 'Not Found' : status === 409 ? 'Conflict' : 'Unprocessable Entity',
+      status,
+      code: error.code,
+      detail: error.message,
+      instance,
+      traceId,
+      ...(error instanceof IngestionValidationError
+        ? { validationErrors: error.issues }
+        : {}),
+    };
+    return reply.status(status).type('application/problem+json').send(body);
   }
 
   if (error instanceof DomainError) {

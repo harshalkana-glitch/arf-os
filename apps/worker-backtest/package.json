@@ -1,5 +1,5 @@
 {
-  "name": "@arf/api",
+  "name": "@arf/worker-backtest",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,15 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arf/backtest-sdk": "workspace:*",
     "@arf/contracts": "workspace:*",
     "@arf/db": "workspace:*",
-    "@arf/metrics": "workspace:*",
-    "@arf/workflow": "workspace:*",
+    "@arf/event-bus": "workspace:*",
+    "bullmq": "^5.34.0",
     "drizzle-orm": "^0.38.3",
-    "fastify": "^5.2.0",
-    "zod": "^3.24.1",
-    "@arf/pine": "workspace:*",
-    "@arf/backtest-sdk": "workspace:*"
+    "ioredis": "^5.4.2"
   },
   "devDependencies": {
     "tsx": "^4.19.2"

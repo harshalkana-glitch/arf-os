@@ -13,7 +13,7 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerCampaignRoutes } from './routes/campaigns.js';
 import { registerStrategyVersionRoutes } from './routes/strategy-versions.js';
 import { registerVerificationRoutes } from './routes/verifications.js';
-import type { ObjectStore } from './storage.js';
+import type { ObjectStore } from '@arf/backtest-sdk';
 
 export interface AppDependencies {
   readonly db: Database;

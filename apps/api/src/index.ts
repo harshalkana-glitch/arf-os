@@ -29,9 +29,16 @@ async function main(): Promise<void> {
     presignTtlSeconds: Number(process.env['S3_PRESIGN_TTL_SECONDS'] ?? 900),
   });
 
+  // Comma-separated list; empty means no browser client is permitted.
+  const allowedOrigins = (process.env['WEB_ORIGIN'] ?? '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   const app = buildApp({
     db,
     store,
+    allowedOrigins,
     auth: {
       // The stub is only ever offered locally, and buildApp refuses to
       // construct if this is true in any other environment.

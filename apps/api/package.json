@@ -10,15 +10,16 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
+    "@arf/backtest-sdk": "workspace:*",
     "@arf/contracts": "workspace:*",
     "@arf/db": "workspace:*",
     "@arf/metrics": "workspace:*",
+    "@arf/pine": "workspace:*",
     "@arf/workflow": "workspace:*",
+    "@fastify/cors": "^11.3.0",
     "drizzle-orm": "^0.38.3",
     "fastify": "^5.2.0",
-    "zod": "^3.24.1",
-    "@arf/pine": "workspace:*",
-    "@arf/backtest-sdk": "workspace:*"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "tsx": "^4.19.2"

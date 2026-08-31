@@ -76,6 +76,7 @@ beforeAll(async () => {
   app = buildApp({
     db: handle.db,
     store,
+    allowedOrigins: [],
     auth: { allowDevAuth: true, environment: 'local' },
     logLevel: 'silent',
   });

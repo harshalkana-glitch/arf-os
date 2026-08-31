@@ -93,6 +93,7 @@ beforeAll(async () => {
   app = buildApp({
     db: handle.db,
     store: testStore(),
+    allowedOrigins: [],
     auth: { allowDevAuth: true, environment: 'local' },
     logLevel: 'silent',
   });
@@ -497,9 +498,77 @@ describe('configuration safety', () => {
       buildApp({
         db: handle.db,
         store: testStore(),
+        allowedOrigins: [],
         auth: { allowDevAuth: true, environment: 'production' },
         logLevel: 'silent',
       }),
     ).toThrow(/Refusing to start/);
+  });
+});
+
+describe('cross-origin policy', () => {
+  /**
+   * Regression: the API shipped with no CORS handling at all, so every write
+   * from the web app — which runs on a different port and is therefore a
+   * different origin — was blocked by the browser before it left the page.
+   * app.inject bypasses the network, so no integration test could see it; it
+   * took an end-to-end run to surface.
+   */
+  it('answers a preflight from an allowed origin', async () => {
+    const allowed = buildApp({
+      db: handle.db,
+      store: testStore(),
+      allowedOrigins: ['http://127.0.0.1:3100'],
+      auth: { allowDevAuth: true, environment: 'local' },
+      logLevel: 'silent',
+    });
+    await allowed.ready();
+
+    const res = await allowed.inject({
+      method: 'OPTIONS',
+      url: '/v1/campaigns',
+      headers: {
+        origin: 'http://127.0.0.1:3100',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type,x-dev-user',
+      },
+    });
+
+    expect(res.statusCode).toBeLessThan(300);
+    expect(res.headers['access-control-allow-origin']).toBe('http://127.0.0.1:3100');
+    await allowed.close();
+  });
+
+  it('does not reflect an origin that is not on the allowlist', async () => {
+    // Reflecting an arbitrary Origin would let any page a researcher visits
+    // read their organisation's research (CLAUDE.md 19).
+    const allowed = buildApp({
+      db: handle.db,
+      store: testStore(),
+      allowedOrigins: ['http://127.0.0.1:3100'],
+      auth: { allowDevAuth: true, environment: 'local' },
+      logLevel: 'silent',
+    });
+    await allowed.ready();
+
+    const res = await allowed.inject({
+      method: 'OPTIONS',
+      url: '/v1/campaigns',
+      headers: {
+        origin: 'https://evil.example',
+        'access-control-request-method': 'POST',
+      },
+    });
+
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    await allowed.close();
+  });
+
+  it('serves a non-browser request that sends no Origin header', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/health/ready',
+    });
+    expect(res.statusCode).toBe(200);
   });
 });

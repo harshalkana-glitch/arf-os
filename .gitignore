@@ -18,3 +18,8 @@ test-results/
 
 # Local object-store and database volumes
 .volumes/
+apps/web/e2e/.seed.json
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

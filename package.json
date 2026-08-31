@@ -22,6 +22,7 @@
     "db:seed": "pnpm --filter @arf/api seed"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "^24.0.0",
     "prettier": "^3.4.2",
     "turbo": "^2.3.3",

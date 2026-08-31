@@ -11,7 +11,7 @@
  * Safe to run repeatedly: it creates a fresh organisation each time rather
  * than mutating an existing one.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { eq } from 'drizzle-orm';
@@ -138,6 +138,30 @@ async function main(): Promise<void> {
     await completeUpload(db, store, actor, upload.uploadId);
 
     const result = await processVerification(db, store, actor, verification.id);
+
+    /**
+     * Emit the ids when asked, so an end-to-end run can address the exact
+     * records this seed produced rather than scraping them out of a page.
+     */
+    const outputPath = process.env['SEED_OUTPUT'];
+    if (outputPath) {
+      writeFileSync(
+        outputPath,
+        JSON.stringify(
+          {
+            organisationId: orgId,
+            externalId,
+            strategyVersionId: versionId,
+            backtestRunId: result.backtestRunId,
+            verificationId: verification.id,
+            tradeCount: result.tradeCount,
+            parityStatus: result.parityStatus,
+          },
+          null,
+          2,
+        ),
+      );
+    }
 
     console.log('seeded:');
     console.log(`  organisation      ${orgId}`);

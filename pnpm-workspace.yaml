@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# esbuild's install script selects the platform binary that vitest loads.
+allowBuilds:
+  esbuild: true

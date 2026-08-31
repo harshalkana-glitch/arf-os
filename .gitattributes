@@ -1,2 +1,12 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Parser fixtures are byte-exact reproductions of real exports. Line-ending
+# normalisation would strip the CRLF from the Windows/Excel fixture, so the
+# CRLF handling path would silently stop being exercised on a fresh clone.
+packages/pine/fixtures/** -text
+
+# Pine sources are hashed for reproducibility (spec 3.5). sourceHash()
+# normalises CRLF defensively, but storing them as LF means the bytes on disk
+# match the bytes that were hashed, on every platform.
+*.pine text eol=lf

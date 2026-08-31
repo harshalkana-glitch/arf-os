@@ -1,0 +1,17 @@
+{
+  "name": "@arf/pine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arf/contracts": "workspace:*",
+    "decimal.js": "^10.4.3",
+    "zod": "^3.24.1"
+  }
+}

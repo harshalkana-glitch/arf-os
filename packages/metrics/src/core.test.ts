@@ -253,3 +253,53 @@ describe('summariseDrawdown', () => {
     expect(summary.troughTradeNumber).toBeNull();
   });
 });
+
+describe('computeCoreMetrics — fees may be unavailable', () => {
+  it('reports total fees as undefined when no trade carries one', () => {
+    // A TradingView export has no per-trade commission column (ADR-0002).
+    // Reporting 0 would present the strategy as tested without costs, which
+    // specification 16.1 treats as a hard failure.
+    const result = computeCoreMetrics(
+      ledger([{ ...trade({ tradeNumber: 1, netPnl: '10' }), fees: null }]),
+    );
+    const feesMetric = findMetric(result, 'total_fees');
+    expect(feesMetric?.value).toBeNull();
+    expect(feesMetric?.nullReason).toMatch(/no per-trade commission/);
+  });
+
+  it('refuses a partial sum when only some trades carry fees', () => {
+    // A partial total looks like a real figure while understating the cost.
+    const result = computeCoreMetrics(
+      ledger([
+        { ...trade({ tradeNumber: 1, netPnl: '10' }), fees: '1' },
+        { ...trade({ tradeNumber: 2, netPnl: '10' }), fees: null },
+      ]),
+    );
+    const feesMetric = findMetric(result, 'total_fees');
+    expect(feesMetric?.value).toBeNull();
+    expect(feesMetric?.nullReason).toMatch(/1 of 2 trades/);
+  });
+
+  it('sums fees when every trade reports one', () => {
+    const result = computeCoreMetrics(
+      ledger([
+        { ...trade({ tradeNumber: 1, netPnl: '10' }), fees: '1.5' },
+        { ...trade({ tradeNumber: 2, netPnl: '10' }), fees: '2.5' },
+      ]),
+    );
+    expect(findMetric(result, 'total_fees')?.value).toBe('4');
+  });
+
+  it('still computes gross profit and loss, which are sums of winners and losers', () => {
+    // 'gross' here is not 'before fees'; it is the standard backtest sense.
+    const result = computeCoreMetrics(
+      ledger([
+        { ...trade({ tradeNumber: 1, netPnl: '10' }), fees: null },
+        { ...trade({ tradeNumber: 2, netPnl: '-4' }), fees: null },
+      ]),
+    );
+    expect(findMetric(result, 'gross_profit')?.value).toBe('10');
+    expect(findMetric(result, 'gross_loss')?.value).toBe('4');
+    expect(findMetric(result, 'profit_factor')?.value).toBe('2.5');
+  });
+});

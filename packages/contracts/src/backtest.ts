@@ -22,9 +22,11 @@ import { ParityStatus, RunnerType, TradeDirection } from './enums.js';
 /**
  * One closed trade.
  *
- * Money fields are decimal strings (CLAUDE.md 7.4). `grossPnl`, `fees` and
- * `netPnl` are all carried rather than derived, because a TradingView export
- * supplies all three and silently recomputing one would hide a parity defect.
+ * Money fields are decimal strings (CLAUDE.md 7.4). Where a runner supplies
+ * gross, fees and net separately, all three are stored rather than derived:
+ * recomputing one from the others would mask a defect in them. Where a source
+ * supplies only net — as TradingView does — the others stay null rather than
+ * being invented (ADR-0002).
  */
 export const Trade = z.object({
   /** Position ordinal within the run, 1-based, as the runner reported it. */
@@ -35,8 +37,14 @@ export const Trade = z.object({
   entryPrice: Decimal,
   exitPrice: Decimal,
   quantity: Decimal,
-  grossPnl: Decimal,
-  fees: Decimal,
+  /**
+   * Gross P&L and fees are optional: a TradingView List of Trades export
+   * reports net profit only and carries no per-trade commission column, so
+   * these are genuinely unavailable from that source. See docs/adr/0002.
+   * Net P&L is the one value every runner provides and stays required.
+   */
+  grossPnl: Decimal.nullable().optional(),
+  fees: Decimal.nullable().optional(),
   netPnl: Decimal,
   /** Runner-supplied labels, e.g. "Long entry" / "Stop loss". Never inferred. */
   entryReason: z.string().optional(),

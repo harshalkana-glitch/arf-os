@@ -113,7 +113,13 @@ export function computeCoreMetrics(ledger: TradeLedger): CoreMetrics {
   let grossProfit = ZERO;
   let grossLoss = ZERO;
   let netProfit = ZERO;
+  /**
+   * Fees are summed only where every trade reports them. A TradingView export
+   * has no per-trade commission column (ADR-0002), and summing the subset that
+   * does would understate the total while looking like a real figure.
+   */
   let fees = ZERO;
+  let tradesWithFees = 0;
   let wins = 0;
   let losses = 0;
   let scratches = 0;
@@ -132,7 +138,10 @@ export function computeCoreMetrics(ledger: TradeLedger): CoreMetrics {
   for (const t of trades) {
     const net = new Decimal(t.netPnl);
     netProfit = netProfit.plus(net);
-    fees = fees.plus(new Decimal(t.fees));
+    if (t.fees !== undefined && t.fees !== null) {
+      fees = fees.plus(new Decimal(t.fees));
+      tradesWithFees += 1;
+    }
 
     if (net.gt(0)) {
       wins += 1;
@@ -185,11 +194,22 @@ export function computeCoreMetrics(ledger: TradeLedger): CoreMetrics {
     );
   }
 
+  // 'gross' here is the standard backtest sense — the sum of winning trades
+  // and the sum of losing trades, which feed profit factor. It is NOT
+  // 'before fees'; those per-trade values may be unavailable (ADR-0002).
   metrics.push(
     metric('gross_profit', grossProfit, 'CURRENCY'),
     metric('gross_loss', grossLoss, 'CURRENCY'),
     metric('net_profit', netProfit, 'CURRENCY'),
-    metric('total_fees', fees, 'CURRENCY'),
+    tradesWithFees === closed
+      ? metric('total_fees', fees, 'CURRENCY')
+      : undefinedMetric(
+          'total_fees',
+          'CURRENCY',
+          tradesWithFees === 0
+            ? 'This source reports no per-trade commission (see ADR-0002)'
+            : `Only ${tradesWithFees} of ${closed} trades report fees; a partial sum would understate the total`,
+        ),
     metric('winning_trade_count', wins, 'COUNT'),
     metric('losing_trade_count', losses, 'COUNT'),
     metric('scratch_trade_count', scratches, 'COUNT'),

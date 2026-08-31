@@ -215,8 +215,9 @@ export const trades = pgTable(
     entryPrice: money('entry_price').notNull(),
     exitPrice: money('exit_price').notNull(),
     quantity: quantity('quantity').notNull(),
-    grossPnl: money('gross_pnl').notNull(),
-    fees: money('fees').notNull(),
+    // Nullable: unavailable from a TradingView export (ADR-0002).
+    grossPnl: money('gross_pnl'),
+    fees: money('fees'),
     netPnl: money('net_pnl').notNull(),
     mae: money('mae'),
     mfe: money('mfe'),

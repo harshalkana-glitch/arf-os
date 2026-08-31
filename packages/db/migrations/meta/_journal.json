@@ -15,6 +15,13 @@
       "when": 1788212938751,
       "tag": "0001_immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788215353632,
+      "tag": "0002_nullable_trade_costs",
+      "breakpoints": true
     }
   ]
 }

@@ -48,6 +48,16 @@ export interface ParsedTrade {
   readonly exitSignal: string | null;
   readonly runUp: string | null;
   readonly drawdown: string | null;
+  /**
+   * TradingView's own running total after this trade.
+   *
+   * This is the one genuinely independent number the export carries: ARF
+   * reconstructs equity from the per-trade P&L column, so comparing the
+   * final reconstructed total against this reported total is a real check of
+   * the reconstruction rather than a comparison of a value with itself.
+   * Null when the export omits the column.
+   */
+  readonly cumulativePnl: string | null;
 }
 
 export interface ParseTradesOptions {
@@ -246,6 +256,7 @@ export function parseListOfTrades(
       exitSignal: cell(exit.row.cells, mapping, 'signal') ?? null,
       runUp: num(exit.row, 'runUp'),
       drawdown: num(exit.row, 'drawdown'),
+      cumulativePnl: num(exit.row, 'cumulativePnl'),
     });
   }
 

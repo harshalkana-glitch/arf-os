@@ -204,6 +204,14 @@ describe('parsing the modern US export', () => {
     );
   });
 
+  it('captures the reported cumulative total, the one independent number', () => {
+    // ARF sums the per-trade P&L column itself; comparing that sum against
+    // this reported running total is a real check of the reconstruction
+    // rather than a comparison of a value with itself.
+    expect(result.trades[0]?.cumulativePnl).toBe('119.5');
+    expect(result.trades[1]?.cumulativePnl).toBe('68');
+  });
+
   it('records that per-trade fees are unavailable', () => {
     expect(result.warnings.some((w) => w.includes('commission is not present'))).toBe(true);
   });

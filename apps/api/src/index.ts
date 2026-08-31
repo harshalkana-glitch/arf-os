@@ -7,6 +7,7 @@
  */
 import { createDatabase } from '@arf/db';
 import { buildApp } from './app.js';
+import { S3ObjectStore } from './storage.js';
 
 function required(name: string): string {
   const value = process.env[name];
@@ -18,8 +19,19 @@ async function main(): Promise<void> {
   const environment = process.env['ARF_ENVIRONMENT'] ?? 'local';
   const { db, close } = createDatabase({ url: required('DATABASE_URL') });
 
+  const store = new S3ObjectStore({
+    endpoint: required('S3_ENDPOINT'),
+    region: process.env['S3_REGION'] ?? 'auto',
+    accessKeyId: required('S3_ACCESS_KEY_ID'),
+    secretAccessKey: required('S3_SECRET_ACCESS_KEY'),
+    bucket: required('S3_BUCKET_UPLOADS'),
+    forcePathStyle: process.env['S3_FORCE_PATH_STYLE'] === 'true',
+    presignTtlSeconds: Number(process.env['S3_PRESIGN_TTL_SECONDS'] ?? 900),
+  });
+
   const app = buildApp({
     db,
+    store,
     auth: {
       // The stub is only ever offered locally, and buildApp refuses to
       // construct if this is true in any other environment.

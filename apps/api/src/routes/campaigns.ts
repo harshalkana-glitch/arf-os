@@ -14,6 +14,7 @@ import { newId } from '@arf/db';
 import { auditEvents, campaigns, idempotencyRecords } from '@arf/db/schema';
 import { requireRole } from '../auth.js';
 import { IdempotencyConflictError, UnauthorisedError } from '../errors.js';
+import { toIso } from '../serialization.js';
 
 const CreateCampaignBody = z.object({
   title: z.string().min(1),
@@ -134,10 +135,10 @@ export function registerCampaignRoutes(app: FastifyInstance, db: Database): void
         state: c.state,
         budgetUsd: c.budgetUsd,
         modelSpendUsd: c.modelSpendUsd,
-        createdAt: c.createdAt,
+        createdAt: toIso(c.createdAt),
       })),
       nextCursor:
-        rows.length > query.limit ? (page[page.length - 1]?.createdAt ?? null) : null,
+        rows.length > query.limit ? toIso(page[page.length - 1]?.createdAt ?? null) : null,
     };
   });
 }

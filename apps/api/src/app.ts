@@ -12,10 +12,14 @@ import { problemDetailsHandler } from './errors.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerCampaignRoutes } from './routes/campaigns.js';
 import { registerStrategyVersionRoutes } from './routes/strategy-versions.js';
+import { registerVerificationRoutes } from './routes/verifications.js';
+import type { ObjectStore } from './storage.js';
 
 export interface AppDependencies {
   readonly db: Database;
   readonly auth: AuthConfig;
+  /** Object store for presigned uploads and artefact reads. */
+  readonly store: ObjectStore;
   readonly logLevel?: string;
 }
 
@@ -57,6 +61,7 @@ export function buildApp(deps: AppDependencies): FastifyInstance {
 
     registerCampaignRoutes(instance, deps.db);
     registerStrategyVersionRoutes(instance, deps.db);
+    registerVerificationRoutes(instance, deps.db, deps.store);
   });
 
   return app;

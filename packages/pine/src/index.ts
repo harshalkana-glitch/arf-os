@@ -54,3 +54,13 @@ export {
   type ParseTradesOptions,
   type ParseTradesResult,
 } from './parse-trades.js';
+
+export {
+  computeParity,
+  TOLERANCE_POLICY_VERSION,
+  type FieldComparison,
+  type ParityIdentity,
+  type ParityResult,
+  type ParitySide,
+  type ParityTrade,
+} from './parity.js';

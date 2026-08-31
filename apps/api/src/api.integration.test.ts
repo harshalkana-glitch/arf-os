@@ -26,6 +26,20 @@ import {
 } from '@arf/db/schema';
 import type { RbacRole, WorkflowState } from '@arf/contracts';
 import { buildApp } from './app.js';
+import { S3ObjectStore } from './storage.js';
+
+/** MinIO from infra/docker/docker-compose.yml. */
+function testStore(): S3ObjectStore {
+  return new S3ObjectStore({
+    endpoint: process.env['S3_ENDPOINT'] ?? 'http://localhost:9000',
+    region: 'auto',
+    accessKeyId: process.env['S3_ACCESS_KEY_ID'] ?? 'arf_local',
+    secretAccessKey: process.env['S3_SECRET_ACCESS_KEY'] ?? 'arf_local_dev_secret',
+    bucket: process.env['S3_BUCKET_UPLOADS'] ?? 'arf-uploads',
+    forcePathStyle: true,
+    presignTtlSeconds: 900,
+  });
+}
 
 const TEST_URL =
   process.env['TEST_DATABASE_URL'] ?? 'postgresql://arf:arf_local_dev@localhost:5433/arf_test';
@@ -78,6 +92,7 @@ beforeAll(async () => {
 
   app = buildApp({
     db: handle.db,
+    store: testStore(),
     auth: { allowDevAuth: true, environment: 'local' },
     logLevel: 'silent',
   });
@@ -481,6 +496,7 @@ describe('configuration safety', () => {
     expect(() =>
       buildApp({
         db: handle.db,
+        store: testStore(),
         auth: { allowDevAuth: true, environment: 'production' },
         logLevel: 'silent',
       }),

@@ -15,6 +15,7 @@ import { EvidenceKind, HardFailure, WorkflowState } from '@arf/contracts';
 import { availableTransitions } from '@arf/workflow';
 import { assertSameOrganisation } from '../auth.js';
 import { UnauthorisedError } from '../errors.js';
+import { toIso } from '../serialization.js';
 import { applyTransition } from '../services/transition.js';
 
 const TransitionBody = z.object({
@@ -64,7 +65,7 @@ export function registerStrategyVersionRoutes(app: FastifyInstance, db: Database
       contaminatedDatasetIds: row.contaminatedDatasetIds,
       // Immutable once tested; the UI renders the source read-only on this.
       isTested: row.firstTestedAt !== null,
-      createdAt: row.createdAt,
+      createdAt: toIso(row.createdAt),
       availableTransitions: availableTransitions(row.state).map((r) => ({
         to: r.to,
         requiredEvidence: r.requiredEvidence,
@@ -155,9 +156,9 @@ export function registerStrategyVersionRoutes(app: FastifyInstance, db: Database
         priorState: r.priorState,
         newState: r.newState,
         reason: r.reason,
-        createdAt: r.createdAt,
+        createdAt: toIso(r.createdAt),
       })),
-      nextCursor: hasMore ? (page[page.length - 1]?.createdAt ?? null) : null,
+      nextCursor: hasMore ? toIso(page[page.length - 1]?.createdAt ?? null) : null,
     };
   });
 }

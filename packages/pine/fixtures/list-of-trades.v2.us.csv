@@ -1,6 +1,6 @@
-Trade #,Type,Date/Time,Signal,Price USD,Position size (qty),Net P&L USD,Net P&L %,Run-up USD,Drawdown USD
-1,Entry long,2026-01-05 09:00,Long,"1,250.50",2,,,,
-1,Exit long,2026-01-05 15:00,Close entry(s) order Long,"1,310.25",2,"119.50",4.78,"140.00",-12.00
-2,Entry short,2026-01-06 10:00,Short,"1,300.00",2,,,,
-2,Exit short,2026-01-06 14:30,Stop,"1,325.75",2,-51.50,-1.98,8.00,-55.00
-3,Entry long,2026-01-07 09:30,Long,"1,280.00",1,,,,
+Trade #,Type,Date/Time,Signal,Price USD,Position size (qty),Net P&L USD,Net P&L %,Run-up USD,Drawdown USD,Cumulative P&L USD
+1,Entry long,2026-01-05 09:00,Long,"1,250.50",2,,,,,
+1,Exit long,2026-01-05 15:00,Close entry(s) order Long,"1,310.25",2,"119.50",4.78,"140.00",-12.00,"119.50"
+2,Entry short,2026-01-06 10:00,Short,"1,300.00",2,,,,,
+2,Exit short,2026-01-06 14:30,Stop,"1,325.75",2,-51.50,-1.98,8.00,-55.00,68.00
+3,Entry long,2026-01-07 09:30,Long,"1,280.00",1,,,,,

@@ -42,7 +42,9 @@ beforeAll(async () => {
   await handle.db.insert(organisations).values({
     id: orgId,
     name: 'Test Org',
-    slug: `test-${orgId.slice(0, 8)}`,
+    // The leading bits of a UUIDv7 are a millisecond timestamp, so a short
+    // prefix repeats across runs inside the same ~65s window. Use the whole id.
+    slug: `test-${orgId}`,
   });
 }, 120_000);
 

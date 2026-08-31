@@ -1,0 +1,23 @@
+{
+  "name": "@arf/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arf/contracts": "workspace:*",
+    "@arf/db": "workspace:*",
+    "@arf/metrics": "workspace:*",
+    "@arf/workflow": "workspace:*",
+    "drizzle-orm": "^0.38.3",
+    "fastify": "^5.2.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}

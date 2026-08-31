@@ -8,6 +8,7 @@
  * original bytes rather than against an already-normalised copy.
  */
 import {
+  boolean,
   char,
   doublePrecision,
   index,
@@ -89,6 +90,21 @@ export const tradingviewVerifications = pgTable(
     expectedSettings: jsonb('expected_settings').notNull(),
     expectedRangeStart: ts('expected_range_start'),
     expectedRangeEnd: ts('expected_range_end'),
+
+    /**
+     * How to read the export the operator will produce.
+     *
+     * The chart timezone is captured here, at creation, because a TradingView
+     * export carries wall-clock times with no zone. A wrong zone shifts every
+     * trade by hours and can move it across a segment boundary, so it is a
+     * property of this specific verification rather than a process-level
+     * default a worker happens to be started with.
+     */
+    chartTimezone: text('chart_timezone').notNull(),
+    /** Set only when the export uses day-first dates that are ambiguous. */
+    dateFormatDayFirst: boolean('date_format_day_first'),
+    /** The account size the operator configured, for equity reconstruction. */
+    initialCapital: money('initial_capital').notNull(),
 
     requestedByUserId: fk('requested_by_user_id').references(() => users.id),
     completedAt: ts('completed_at'),

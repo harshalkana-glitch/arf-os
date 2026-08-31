@@ -112,7 +112,13 @@ async function makeVersion(): Promise<string> {
 }
 
 /** Run the full flow and return the ids it produced. */
-async function ingest(csv: string, filename = 'trades.csv') {
+async function ingest(
+  csv: string,
+  filename = 'trades.csv',
+  exportSettings: { chartTimezone: string; dateFormatDayFirst?: boolean } = {
+    chartTimezone: 'Etc/UTC',
+  },
+) {
   const versionId = await makeVersion();
 
   const created = await app.inject({
@@ -124,6 +130,8 @@ async function ingest(csv: string, filename = 'trades.csv') {
       symbol: 'BYBIT:BTCUSDT.P',
       timeframe: '60',
       settings: { commission: 0.06, slippage: 2 },
+      ...exportSettings,
+      initialCapital: '10000',
     },
   });
   expect(created.statusCode).toBe(201);
@@ -186,7 +194,6 @@ describe('the full ingestion pipeline', () => {
       method: 'POST',
       url: `/v1/verifications/${verificationId}/process`,
       headers: asOperator(),
-      payload: { timeZone: 'Etc/UTC', initialCapital: '10000' },
     });
     expect(processed.statusCode).toBe(200);
     const { backtestRunId, tradeCount } = processed.json();
@@ -243,7 +250,6 @@ describe('the full ingestion pipeline', () => {
       method: 'POST',
       url: `/v1/verifications/${verificationId}/process`,
       headers: asOperator(),
-      payload: { timeZone: 'Etc/UTC', initialCapital: '10000' },
     });
 
     const parity = await app.inject({
@@ -281,7 +287,6 @@ describe('the full ingestion pipeline', () => {
       method: 'POST',
       url: `/v1/verifications/${verificationId}/process`,
       headers: asOperator(),
-      payload: { timeZone: 'Etc/UTC', initialCapital: '10000' },
     });
 
     const parity = await app.inject({
@@ -298,6 +303,7 @@ describe('the full ingestion pipeline', () => {
     const { verificationId, uploadId } = await ingest(
       fixture('list-of-trades.v1.eu.csv'),
       'eu.csv',
+      { chartTimezone: 'Europe/Berlin', dateFormatDayFirst: true },
     );
     await app.inject({
       method: 'POST',
@@ -308,7 +314,6 @@ describe('the full ingestion pipeline', () => {
       method: 'POST',
       url: `/v1/verifications/${verificationId}/process`,
       headers: asOperator(),
-      payload: { timeZone: 'Europe/Berlin', dayFirst: true, initialCapital: '10000' },
     });
     expect(processed.statusCode).toBe(200);
 
@@ -334,7 +339,14 @@ describe('upload validation', () => {
       method: 'POST',
       url: '/v1/verifications',
       headers: asOperator(),
-      payload: { strategyVersionId: versionId, symbol: 'X:Y', timeframe: '60', settings: {} },
+      payload: {
+        strategyVersionId: versionId,
+        symbol: 'X:Y',
+        timeframe: '60',
+        settings: {},
+        chartTimezone: 'Etc/UTC',
+        initialCapital: '10000',
+      },
     });
     const verificationId = created.json().id;
 
@@ -369,7 +381,14 @@ describe('upload validation', () => {
       method: 'POST',
       url: '/v1/verifications',
       headers: asOperator(),
-      payload: { strategyVersionId: versionId, symbol: 'X:Y', timeframe: '60', settings: {} },
+      payload: {
+        strategyVersionId: versionId,
+        symbol: 'X:Y',
+        timeframe: '60',
+        settings: {},
+        chartTimezone: 'Etc/UTC',
+        initialCapital: '10000',
+      },
     });
     const res = await app.inject({
       method: 'POST',
@@ -404,7 +423,14 @@ describe('upload validation', () => {
       method: 'POST',
       url: '/v1/verifications',
       headers: asOperator(),
-      payload: { strategyVersionId: versionId, symbol: 'X:Y', timeframe: '60', settings: {} },
+      payload: {
+        strategyVersionId: versionId,
+        symbol: 'X:Y',
+        timeframe: '60',
+        settings: {},
+        chartTimezone: 'Etc/UTC',
+        initialCapital: '10000',
+      },
     });
     expect(res.statusCode).toBe(422);
     expect(res.json().detail).toMatch(/no Pine revision/);
@@ -457,7 +483,6 @@ describe('the verification task tells the operator exactly what to run', () => {
       method: 'POST',
       url: `/v1/verifications/${verificationId}/process`,
       headers: asOperator(),
-      payload: { timeZone: 'Etc/UTC', initialCapital: '10000' },
     });
 
     const res = await app.inject({

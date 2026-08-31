@@ -22,6 +22,13 @@
       "when": 1788215353632,
       "tag": "0002_nullable_trade_costs",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788216759525,
+      "tag": "0003_verification_export_settings",
+      "breakpoints": true
     }
   ]
 }

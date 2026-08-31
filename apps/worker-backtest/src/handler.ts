@@ -28,13 +28,6 @@ export const WORKER_ACTOR = 'worker-backtest' as const;
 export interface HandlerDependencies {
   readonly db: Database;
   readonly store: ObjectStore;
-  /**
-   * Ingestion needs the chart timezone and the initial capital, and neither
-   * can be guessed. Until they are captured on the verification row at
-   * creation time they are supplied here as defaults; a wrong timezone shifts
-   * every trade, so this is deliberately explicit rather than inferred.
-   */
-  readonly defaults: { readonly timeZone: string; readonly initialCapital: string };
   readonly log?: (message: string, context?: Record<string, unknown>) => void;
 }
 
@@ -115,8 +108,9 @@ export async function handleReportIngestion(
         actorId: WORKER_ACTOR,
         actorType: 'SERVICE',
       },
+      // The chart timezone and initial capital live on the verification row,
+      // so the same file is read identically whichever worker picks it up.
       job.verificationId,
-      { timeZone: deps.defaults.timeZone, initialCapital: deps.defaults.initialCapital },
     );
     deps.log?.('ingestion job processed', {
       verificationId: job.verificationId,

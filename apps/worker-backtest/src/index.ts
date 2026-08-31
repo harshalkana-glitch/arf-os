@@ -71,15 +71,7 @@ async function main(): Promise<void> {
       // (CLAUDE.md 3.3).
       const parsed = ReportIngestionJob.parse(job.data);
       return handleReportIngestion(
-        {
-          db,
-          store,
-          defaults: {
-            timeZone: process.env['INGESTION_DEFAULT_TIMEZONE'] ?? 'Etc/UTC',
-            initialCapital: process.env['INGESTION_DEFAULT_CAPITAL'] ?? '10000',
-          },
-          log,
-        },
+        { db, store, log },
         parsed,
       );
     },

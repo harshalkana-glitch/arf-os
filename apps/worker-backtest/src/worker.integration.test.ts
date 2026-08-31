@@ -88,8 +88,6 @@ afterAll(async () => {
   await handle?.close();
 });
 
-const DEFAULTS = { timeZone: 'Etc/UTC', initialCapital: '10000' } as const;
-
 /** Build a verification with a completed upload sitting in object storage. */
 async function stageUpload(csv: string): Promise<{
   versionId: string;
@@ -122,6 +120,8 @@ async function stageUpload(csv: string): Promise<{
     expectedSymbol: 'BYBIT:BTCUSDT.P',
     expectedTimeframe: '60',
     expectedSettings: {},
+    chartTimezone: 'Etc/UTC',
+    initialCapital: '10000',
   });
 
   const bytes = new TextEncoder().encode(csv);
@@ -310,7 +310,7 @@ describe('the ingestion job handler', () => {
     );
 
     const outcome = await handleReportIngestion(
-      { db, store, defaults: DEFAULTS },
+      { db, store },
       { outboxEventId: newId(), organisationId: orgId, uploadId, verificationId, artefactId: newId() },
     );
 
@@ -339,7 +339,7 @@ describe('the ingestion job handler', () => {
       .where(eq(strategyVersions.id, versionId));
 
     await handleReportIngestion(
-      { db, store, defaults: DEFAULTS },
+      { db, store },
       { outboxEventId: newId(), organisationId: orgId, uploadId, verificationId, artefactId: newId() },
     );
 
@@ -357,7 +357,7 @@ describe('the ingestion job handler', () => {
       fixture('list-of-trades.v2.us.csv'),
     );
     await handleReportIngestion(
-      { db, store, defaults: DEFAULTS },
+      { db, store },
       { outboxEventId: newId(), organisationId: orgId, uploadId, verificationId, artefactId: newId() },
     );
 
@@ -388,8 +388,8 @@ describe('the ingestion job handler', () => {
       artefactId: newId(),
     };
 
-    const first = await handleReportIngestion({ db, store, defaults: DEFAULTS }, job);
-    const second = await handleReportIngestion({ db, store, defaults: DEFAULTS }, job);
+    const first = await handleReportIngestion({ db, store }, job);
+    const second = await handleReportIngestion({ db, store }, job);
 
     expect(first.status).toBe('PROCESSED');
     expect(second.status).toBe('ALREADY_PROCESSED');
@@ -407,7 +407,7 @@ describe('the ingestion job handler', () => {
     const { verificationId, uploadId } = await stageUpload('Nonsense,Header\n1,2\n');
 
     const outcome = await handleReportIngestion(
-      { db, store, defaults: DEFAULTS },
+      { db, store },
       { outboxEventId: newId(), organisationId: orgId, uploadId, verificationId, artefactId: newId() },
     );
 
@@ -439,7 +439,7 @@ describe('the ingestion job handler', () => {
       fixture('list-of-trades.v2.us.csv'),
     );
     const outcome = await handleReportIngestion(
-      { db, store, defaults: DEFAULTS },
+      { db, store },
       {
         outboxEventId: newId(),
         organisationId: newId(), // a different organisation

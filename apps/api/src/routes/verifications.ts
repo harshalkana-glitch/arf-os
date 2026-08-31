@@ -31,6 +31,10 @@ const CreateBody = z.object({
   settings: z.record(z.string(), z.unknown()).default({}),
   rangeStart: z.string().datetime({ offset: true }).optional(),
   rangeEnd: z.string().datetime({ offset: true }).optional(),
+  /** Required: a TradingView export carries no timezone of its own. */
+  chartTimezone: z.string().min(1),
+  dateFormatDayFirst: z.boolean().optional(),
+  initialCapital: z.string().regex(/^\d+(\.\d+)?$/, 'Expected a decimal amount'),
 });
 
 const PresignBody = z.object({
@@ -101,8 +105,10 @@ export function registerVerificationRoutes(
         symbol: row.expectedSymbol,
         timeframe: row.expectedTimeframe,
         settings: row.expectedSettings,
-        rangeStart: row.expectedRangeStart,
-        rangeEnd: row.expectedRangeEnd,
+        rangeStart: toIso(row.expectedRangeStart),
+        rangeEnd: toIso(row.expectedRangeEnd),
+        chartTimezone: row.chartTimezone,
+        initialCapital: row.initialCapital,
       },
       uploads: uploads.map((u) => ({
         id: u.id,
@@ -148,8 +154,9 @@ export function registerVerificationRoutes(
     if (!auth) throw new UnauthorisedError();
     requireRole(auth, ['DEVELOPER', 'VALIDATOR', 'OPERATOR', 'ADMIN']);
     const { id } = IdParam.parse(request.params);
-    const body = ProcessBody.parse(request.body);
-    return processVerification(db, store, asActor(auth), id, body);
+    // No body: the export settings were captured on the verification when it
+    // was created, so a caller cannot vary how a stored file is read.
+    return processVerification(db, store, asActor(auth), id);
   });
 
   app.get('/v1/verifications/:id/parity', async (request) => {

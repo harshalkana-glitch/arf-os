@@ -76,6 +76,14 @@ export interface CreateVerificationInput {
   readonly settings: Record<string, unknown>;
   readonly rangeStart?: string | undefined;
   readonly rangeEnd?: string | undefined;
+  /**
+   * The chart timezone the operator will export in. Required, no default:
+   * guessing shifts every trade and can move it across a segment boundary.
+   */
+  readonly chartTimezone: string;
+  /** Set only when the export uses ambiguous day-first dates. */
+  readonly dateFormatDayFirst?: boolean | undefined;
+  readonly initialCapital: string;
 }
 
 /**
@@ -120,6 +128,11 @@ export async function createVerification(
       expectedSymbol: input.symbol,
       expectedTimeframe: input.timeframe,
       expectedSettings: input.settings,
+      chartTimezone: input.chartTimezone,
+      initialCapital: input.initialCapital,
+      ...(input.dateFormatDayFirst === undefined
+        ? {}
+        : { dateFormatDayFirst: input.dateFormatDayFirst }),
       ...(input.rangeStart ? { expectedRangeStart: input.rangeStart } : {}),
       ...(input.rangeEnd ? { expectedRangeEnd: input.rangeEnd } : {}),
       ...(actor.actorType === 'HUMAN' ? { requestedByUserId: actor.actorId } : {}),
@@ -325,11 +338,6 @@ export async function processVerification(
   store: ObjectStore,
   actor: ActorContext,
   verificationId: string,
-  options: {
-    readonly timeZone: string;
-    readonly dayFirst?: boolean | undefined;
-    readonly initialCapital: string;
-  },
 ): Promise<ProcessResult> {
   const verification = await loadVerification(db, actor, verificationId);
 
@@ -383,8 +391,12 @@ export async function processVerification(
   let parsed;
   try {
     parsed = parseListOfTrades(text, {
-      timeZone: options.timeZone,
-      ...(options.dayFirst === undefined ? {} : { dayFirst: options.dayFirst }),
+      // Read from the verification, not from a caller default: the settings
+      // are a property of this specific export.
+      timeZone: verification.chartTimezone,
+      ...(verification.dateFormatDayFirst === null
+        ? {}
+        : { dayFirst: verification.dateFormatDayFirst }),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -396,7 +408,7 @@ export async function processVerification(
   const ledger = {
     schemaVersion: '1.0.0',
     currency: parsed.currency ?? 'USD',
-    initialCapital: options.initialCapital,
+    initialCapital: verification.initialCapital,
     trades: parsed.trades.map((t) => ({
       tradeNumber: t.tradeNumber,
       direction: t.direction,
@@ -456,7 +468,7 @@ export async function processVerification(
     rangeStart: verification.expectedRangeStart,
     rangeEnd: verification.expectedRangeEnd,
     settingsHash: canonicalHash(verification.expectedSettings),
-    initialCapital: options.initialCapital,
+    initialCapital: verification.initialCapital,
   };
 
   const netProfit = metrics.metrics.find((m) => m.name === 'net_profit')?.value ?? null;
@@ -503,7 +515,7 @@ export async function processVerification(
       parameters: {},
       costModel: { source: 'tradingview_export', perTradeFeesAvailable: false },
       executionModel: verification.expectedSettings,
-      initialCapital: options.initialCapital,
+      initialCapital: verification.initialCapital,
       currency: ledger.currency,
       status: 'SUCCEEDED',
       warnings: allWarnings,

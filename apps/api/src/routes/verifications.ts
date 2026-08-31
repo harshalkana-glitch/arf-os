@@ -10,7 +10,12 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Database } from '@arf/db';
-import { parityReports, reportUploads, tradingviewVerifications } from '@arf/db/schema';
+import {
+  backtestRuns,
+  parityReports,
+  reportUploads,
+  tradingviewVerifications,
+} from '@arf/db/schema';
 import { assertSameOrganisation, requireRole } from '../auth.js';
 import { UnauthorisedError } from '../errors.js';
 import { toIso } from '../serialization.js';
@@ -43,16 +48,6 @@ const PresignBody = z.object({
   reportKind: z.enum(['PERFORMANCE_SUMMARY', 'LIST_OF_TRADES']),
   declaredSha256: z.string().regex(/^[0-9a-f]{64}$/),
   byteSize: z.number().int().positive(),
-});
-
-const ProcessBody = z.object({
-  /**
-   * The chart timezone the export was taken in. Required with no default:
-   * guessing shifts every trade and can move it across a segment boundary.
-   */
-  timeZone: z.string().min(1),
-  dayFirst: z.boolean().optional(),
-  initialCapital: z.string().regex(/^\d+(\.\d+)?$/),
 });
 
 const IdParam = z.object({ id: z.string().uuid() });
@@ -200,6 +195,48 @@ export function registerVerificationRoutes(
       firstDivergenceDetail: report.firstDivergenceDetail,
       insufficientDataReason: report.insufficientDataReason,
       createdAt: toIso(report.createdAt),
+    };
+  });
+
+  /**
+   * Runs recorded against a strategy version, newest first.
+   *
+   * Each row states its runner explicitly: a local-runner result and a
+   * TradingView result are never presented as interchangeable (CLAUDE.md 18.1).
+   */
+  app.get('/v1/strategy-versions/:id/runs', async (request) => {
+    const auth = request.auth;
+    if (!auth) throw new UnauthorisedError();
+    const { id } = IdParam.parse(request.params);
+
+    const rows = await db
+      .select()
+      .from(backtestRuns)
+      .where(
+        and(
+          eq(backtestRuns.strategyVersionId, id),
+          eq(backtestRuns.organisationId, auth.organisationId),
+        ),
+      )
+      .orderBy(desc(backtestRuns.createdAt))
+      .limit(50);
+
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        runnerType: r.runnerType,
+        runnerVersion: r.runnerVersion,
+        symbol: r.symbol,
+        timeframe: r.timeframe,
+        status: r.status,
+        currency: r.currency,
+        initialCapital: r.initialCapital,
+        sourceHash: r.sourceHash,
+        warnings: r.warnings,
+        verificationId: r.verificationId,
+        createdAt: toIso(r.createdAt),
+        completedAt: toIso(r.completedAt),
+      })),
     };
   });
 

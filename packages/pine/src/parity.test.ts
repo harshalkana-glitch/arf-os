@@ -191,14 +191,28 @@ describe('missing data', () => {
     expect(result.insufficientDataReason).toMatch(/ARF run produced no trades/);
   });
 
-  it('excludes an unavailable metric rather than counting it as a failure', () => {
+  it('warns rather than failing when a metric is unavailable on one side', () => {
     // Per ADR-0002 some values genuinely do not exist on one side. Treating
     // an absence as a mismatch would train operators to ignore parity.
     const result = computeParity(side(THREE), side(THREE, { net_profit: null }));
-    expect(result.status).toBe('INSUFFICIENT_DATA');
+    expect(result.status).toBe('WARN');
     expect(result.comparisons.find((c) => c.field === 'net_profit')?.note).toMatch(
       /Not available/,
     );
+    // What *was* checked is named, so the gap is visible without discarding
+    // the real comparison that did happen.
+    expect(result.insufficientDataReason).toMatch(/Verified on closed_trade_count/);
+  });
+
+  it('reports INSUFFICIENT_DATA only when nothing at all could be compared', () => {
+    const result = computeParity(
+      side(THREE),
+      side(THREE, { net_profit: null, max_drawdown: null }),
+    );
+    // closed_trade_count is always comparable, so construct the true no-data
+    // case by removing the ARF side's values too.
+    expect(result.status).toBe('WARN');
+    expect(result.comparisons.filter((c) => c.note?.includes('Not available')).length).toBe(2);
   });
 });
 

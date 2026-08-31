@@ -1,0 +1,397 @@
+/*
+ * Design tokens.
+ *
+ * Chart colours come from the validated categorical palette rather than being
+ * picked by eye: the slot order is the colourblind-safety mechanism, so hues
+ * are used in order and never cycled. Status colours are reserved and never
+ * reused as a series colour, so a "bad" red can never be mistaken for data.
+ *
+ * Every token is defined on bare :root for light, then restated under both the
+ * OS media query and an explicit data-theme, so a viewer's toggle wins in both
+ * directions.
+ */
+
+:root {
+  color-scheme: light;
+
+  --surface-page: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f2f2ef;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+
+  /* Categorical slots, in the order the palette defines. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-8: #e34948;
+
+  /* Status. Reserved: never a series colour. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --radius: 6px;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --surface-page: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+
+    /* The same hues, re-stepped for the dark surface — not an inversion. */
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-8: #e66767;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-page: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #232322;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-8: #e66767;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--series-1);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Visible focus is not optional — keyboard navigation is a requirement. */
+:focus-visible {
+  outline: 2px solid var(--series-1);
+  outline-offset: 2px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+}
+
+.brand {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  padding: 0 8px 4px;
+}
+
+.brand small {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 20px;
+}
+
+.nav a {
+  color: var(--text-secondary);
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.nav a:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.main {
+  padding: 28px 32px 64px;
+  max-width: 1180px;
+}
+
+h1 {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 4px;
+}
+
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 28px 0 10px;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  margin: 0 0 22px;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--grid);
+  color: var(--text-primary);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.hash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/*
+ * A value that does not exist is rendered as an explicit absence, never as a
+ * zero (CLAUDE.md 18.1). Zero and "not reported by this source" mean very
+ * different things to a validator.
+ */
+.unavailable {
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-sans);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Status always ships with a glyph and a word, never colour alone. */
+.badge-good {
+  color: var(--status-good);
+  border-color: color-mix(in srgb, var(--status-good) 40%, transparent);
+}
+.badge-warning {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--status-warning) 55%, transparent);
+}
+.badge-critical {
+  color: var(--status-critical);
+  border-color: color-mix(in srgb, var(--status-critical) 45%, transparent);
+}
+
+/*
+ * Provenance labels. CLAUDE.md 18.1 requires every number to say where it came
+ * from; these make that impossible to omit by accident.
+ */
+.provenance {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
+.notice {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--status-warning);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.notice-critical {
+  border-left-color: var(--status-critical);
+}
+
+.empty {
+  color: var(--text-muted);
+  padding: 24px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  padding: 7px 12px;
+}
+button:hover:not(:disabled) {
+  background: var(--surface-1);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/*
+ * Responsive collapse.
+ *
+ * Spec 15.1 is desktop-first, but "responsive enough for monitoring on
+ * tablet". A fixed two-column grid does not degrade — it starves the flexible
+ * column until the evidence column reaches zero width and the most important
+ * content on the page silently disappears. These breakpoints collapse to a
+ * single column instead, so narrow viewports lose the side-by-side layout
+ * rather than losing the evidence.
+ */
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1040px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .main {
+    padding: 20px 16px 48px;
+  }
+}

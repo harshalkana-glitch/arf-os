@@ -19,7 +19,7 @@
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @arf/db generate",
     "db:migrate": "pnpm --filter @arf/db migrate",
-    "db:seed": "pnpm --filter @arf/db seed"
+    "db:seed": "pnpm --filter @arf/api seed"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

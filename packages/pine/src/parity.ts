@@ -368,17 +368,37 @@ export function computeParity(arf: ParitySide, tradingView: ParitySide): ParityR
 
   const unavailable = comparisons.filter((c) => c.note?.includes('Not available') === true);
   const failed = comparisons.filter((c) => !c.withinTolerance);
+  /**
+   * Fields where both sides actually supplied a value, so a real comparison
+   * happened. A field absent on one side is a gap in coverage, not a verdict.
+   */
+  const compared = comparisons.filter((c) => !unavailable.includes(c));
 
   let status: ParityStatus;
   let insufficientDataReason: string | null = null;
 
   if (divergence !== null || failed.length > 0) {
     status = 'FAIL';
-  } else if (unavailable.length > 0) {
+  } else if (compared.length === 0) {
+    // Nothing could be checked at all. Only here is the report genuinely
+    // uninformative.
     status = 'INSUFFICIENT_DATA';
-    insufficientDataReason = `Fields unavailable on one side: ${unavailable
+    insufficientDataReason = `No field could be compared. Unavailable: ${unavailable
       .map((c) => c.field)
       .join(', ')}.`;
+  } else if (unavailable.length > 0) {
+    /**
+     * Some fields agreed and others could not be compared. WARN rather than
+     * INSUFFICIENT_DATA: downgrading the whole report because one field was
+     * absent would discard a real independent check — and here the absent
+     * field is usually drawdown, which is deliberately not offered because
+     * the two definitions are not comparable (ADR-0001). The gap is stated
+     * rather than hidden, but what *was* verified still counts.
+     */
+    status = 'WARN';
+    insufficientDataReason = `Verified on ${compared
+      .map((c) => c.field)
+      .join(', ')}. Not comparable: ${unavailable.map((c) => c.field).join(', ')}.`;
   } else if (comparisons.some((c) => c.note?.includes('ADR-0001') === true)) {
     // Everything agrees, but the drawdown definitions differ by design. WARN
     // rather than PASS so the difference is visible and not mistaken for an

@@ -10,4 +10,5 @@ export * from './enums.js';
 export * from './common.js';
 export * from './sdl.js';
 export * from './backtest.js';
+export * from './evidence.js';
 export * from './hashing.js';

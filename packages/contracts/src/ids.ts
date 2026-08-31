@@ -11,8 +11,15 @@ import { z } from 'zod';
 /** RFC 9562 UUID, any version. Version 7 is used for all new records. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-declare const brand: unique symbol;
-type Brand<T, B extends string> = T & { readonly [brand]: B };
+/**
+ * The branding shape from CLAUDE.md 7.2.
+ *
+ * A `unique symbol` brand would be marginally harder to forge, but it cannot
+ * be named across module boundaries, so any inferred type referencing a
+ * branded ID fails to compile in a consuming package. A property brand keeps
+ * the same compile-time separation and stays nameable.
+ */
+type Brand<T, B extends string> = T & { readonly __brand: B };
 
 function idSchema<B extends string>(name: B) {
   return z
